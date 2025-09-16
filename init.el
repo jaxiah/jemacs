@@ -236,20 +236,20 @@
   ;; Use hook to set up bindings when evil-mode is enabled
   (add-hook 'evil-mode-hook #'my-evil-bindings))
 
-(use-package centaur-tabs
-  :ensure t
-  :demand
-  :config
-  (centaur-tabs-mode t)
-  (centaur-tabs-headline-match)
-  ;; (setq centaur-tabs-height 32
-  (setq centaur-tabs-style "bar"
-        centaur-tabs-set-modified-marker t
-        centaur-tabs-modified-marker "**")
-  ;; (centaur-tabs-change-fonts (face-attribute 'default :font) 110)
-  :bind
-  ("<C-prior>" . centaur-tabs-backward)
-  ("<C-next>" . centaur-tabs-forward))
+;; (use-package centaur-tabs
+;;   :ensure t
+;;   :demand
+;;   :config
+;;   (centaur-tabs-mode t)
+;;   (centaur-tabs-headline-match)
+;;   ;; (setq centaur-tabs-height 32
+;;   (setq centaur-tabs-style "bar"
+;;         centaur-tabs-set-modified-marker t
+;;         centaur-tabs-modified-marker "**")
+;;   ;; (centaur-tabs-change-fonts (face-attribute 'default :font) 110)
+;;   :bind
+;;   ("<C-prior>" . centaur-tabs-backward)
+;;   ("<C-next>" . centaur-tabs-forward))
 
 (require 'init-jxh-codes)
 

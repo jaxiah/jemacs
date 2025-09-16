@@ -117,7 +117,7 @@
   (dape-breakpoint-global-mode)
 
   ;; Info buffers to the right
-  ;; (setq dape-buffer-window-arrangement 'right)
+  (setq dape-buffer-window-arrangement 'right)
 
   ;; Info buffers like gud (gdb-mi)
   ;; (setq dape-buffer-window-arrangement 'gud)

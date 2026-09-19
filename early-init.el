@@ -1,44 +1,33 @@
-;; -*- lexical-binding: t -*-
+;; -*- lexical-binding: t; -*-
 
-;; Defer garbage collection further back in the startup process
-(setq gc-cons-threshold most-positive-fixnum)
+;; Keep startup and package compilation isolated from the default Emacs
+;; installation.  This file is intentionally small: user-facing settings live
+;; in lisp/my-*.el.
+(setq gc-cons-threshold most-positive-fixnum
+      gc-cons-percentage 0.8
+      package-enable-at-startup nil
+      load-prefer-newer noninteractive
+      native-comp-jit-compilation nil
+      native-comp-async-report-warnings-errors (if init-file-debug 'async 'silent))
 
-;; Restore GC settings after startup and tune during minibuffer usage
-(add-hook 'emacs-startup-hook
-          (lambda ()
-            (setq gc-cons-threshold (* 64 1024 1024)
-                  gc-cons-percentage 0.1)))
+(when (boundp 'native-comp-deferred-compilation)
+  (setq native-comp-deferred-compilation nil))
 
-(add-hook 'minibuffer-setup-hook
-          (lambda ()
-            (setq gc-cons-threshold (* 128 1024 1024))))
+;; Large language-server and formatter output benefits from a larger read
+;; buffer.  This is especially noticeable on Windows pipes.
+(setq read-process-output-max (* 4 1024 1024)
+      process-adaptive-read-buffering nil)
 
-(add-hook 'minibuffer-exit-hook
-          (lambda ()
-            (setq gc-cons-threshold (* 64 1024 1024))))
+(when (eq system-type 'windows-nt)
+  ;; Avoid an expensive stat call for every file and use larger Emacs IPC
+  ;; buffers.  These are the same class of Windows-specific optimizations used
+  ;; by mature configurations such as Doom and Centaur.
+  (setq w32-get-true-file-attributes nil
+        w32-pipe-read-delay 0
+        w32-pipe-buffer-size (* 64 1024)))
 
-;; Prevent unwanted runtime compilation for gccemacs (native-comp) users;
-;; packages are compiled ahead-of-time when they are installed and site files
-;; are compiled when gccemacs is installed.
-(setq native-comp-jit-compilation nil)
-
-;; Package initialize occurs automatically, before `user-init-file' is
-;; loaded, but after `early-init-file'. We handle package
-;; initialization, so we must prevent Emacs from doing it early!
-(setq package-enable-at-startup nil)
-
-;; `use-package' is builtin since 29.
-;; It must be set before loading `use-package'.
-(setq use-package-enable-imenu-support t)
-
-;; In noninteractive sessions, prioritize non-byte-compiled source files to
-;; prevent the use of stale byte-code. Otherwise, it saves us a little IO time
-;; to skip the mtime checks on every *.elc file.
-(setq load-prefer-newer noninteractive)
-
-;; ================================================================================
-;; 全面启用 UTF-8，带点冗余，但不影响运行
-;; ================================================================================
+;; Make file names, buffers and subprocess communication predictable on a
+;; Chinese Windows installation.
 (set-language-environment "UTF-8")
 (prefer-coding-system 'utf-8)
 (set-default-coding-systems 'utf-8)
@@ -46,18 +35,49 @@
 (set-terminal-coding-system 'utf-8)
 (set-keyboard-coding-system 'utf-8)
 (setq default-buffer-file-coding-system 'utf-8-unix)
-;; python subprocess 输出用 UTF-8
 (setenv "PYTHONIOENCODING" "UTF-8")
-;; X11 剪贴板，防止乱码（Linux 下有用）
-(setq x-select-request-type '(UTF8_STRING COMPOUND_TEXT TEXT STRING))
-;; windows 下的 locale，保证子进程也用 UTF-8
-(setenv "LANG" "en_US.UTF-8")
 
-
-;; Inhibit resizing frame
+;; Avoid resizing the initial frame several times during startup.
 (setq frame-inhibit-implied-resize t)
 
-;; Faster to disable these here (before they've been initialized)
+;; Keep the initial GUI frame predictable on Windows.  Set both alists because
+;; the initial frame and frames created later do not necessarily consult the
+;; same one during startup.
+(dolist (frame-alist-variable '(default-frame-alist initial-frame-alist))
+  (dolist (frame-parameter '((fullscreen . nil)
+                             (width . 160)
+                             (height . 48)))
+    (set frame-alist-variable
+         (cons frame-parameter
+               (assq-delete-all (car frame-parameter)
+                                (symbol-value frame-alist-variable))))))
+
 (push '(menu-bar-lines . 0) default-frame-alist)
 (push '(tool-bar-lines . 0) default-frame-alist)
 (push '(vertical-scroll-bars) default-frame-alist)
+
+;; File-name handlers are consulted very frequently while packages load.  No
+;; compressed or remote file is needed during early init; restore the values as
+;; soon as startup is complete.
+(let ((saved-file-name-handler-alist file-name-handler-alist)
+      (saved-load-suffixes load-suffixes)
+      (saved-load-file-rep-suffixes load-file-rep-suffixes))
+  (setq file-name-handler-alist nil
+        load-suffixes '(".elc" ".el")
+        load-file-rep-suffixes '(""))
+  (add-hook 'emacs-startup-hook
+            (lambda ()
+              (setq file-name-handler-alist saved-file-name-handler-alist
+                    load-suffixes saved-load-suffixes
+                    load-file-rep-suffixes saved-load-file-rep-suffixes))
+            101))
+
+(setq use-package-enable-imenu-support t)
+
+;; Startup profiling is opt-in because sampling itself adds a small amount of
+;; overhead.  `profile-startup.ps1' sets this environment variable for one
+;; diagnostic launch only.
+(when (getenv "MY_EMACS_PROFILE_STARTUP")
+  (require 'profiler)
+  (when (fboundp 'profiler-cpu-start)
+    (profiler-start 'cpu)))

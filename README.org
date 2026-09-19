@@ -1,3 +1,0 @@
-* jemacs
-
-My emacs dot files.

@@ -1,14 +1,5 @@
 .cache/
-auto-save-list/
-transient/
-server/
-eln-cache/
-straight/
-*.exe
-bookmarks
+cache/
+data/
+packages/
 custom.el
-project*
-dape*
-recentf
-savehist
-tramp
